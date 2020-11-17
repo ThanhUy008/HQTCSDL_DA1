@@ -1,12 +1,13 @@
 *Các chức năng của hệ thống:
 	-Quản lý Nhân Viên.(Thêm,sửa)
 	-Quản lý Người thuê.(Thêm, sửa)
-	-Quản lý nhà,loại nhà.(Thêm,xóa,sửa)
+	-Quản lý nhà,loại nhà(Thêm,xóa,sửa)
 	-Quản lý chủ nhà.(Thêm sửa)
 	-Quản lý chi nhánh.(Thêm sửa)
+	-
 
 	-Xem,tìm thông tin nhà
-	-Tim thông tin khách hàng
+	-Tìm thông tin khách hàng
 	-Xem thông tin nhà bán
 	-Đăng bán/thuê nhà.
 	-Lập Yêu cầu khách hàng.
@@ -14,3 +15,33 @@
 	-Nhận xét nhà.
 	-Lập hợp đồng thuê nhà.
 	-Quản lý khách hàng thuê nhà(cho chủ nhà)
+	
+	///////
+	-Quản lý Nhân Viên.
+		+ Thêm
+		+ Sửa
+		+ Tính lương
+		+ Tìm kiếm
+	-Quản lý khách hàng
+		+ Thêm
+		+ Sửa
+		+ tìm thông tin khách hàng(mua, thuê)
+	-Quản lý nhà
+		+ Thêm
+		+ Xóa 
+		+ Sửa
+		+ Tìm kiếm thông tin nhà (bán, thuê)
+	-Quản lý loại nhà
+		+Thêm
+	-Quản lý chủ nhà.
+		+ Thêm
+		+ Sửa
+		+ Đăng bài (bán, cho thuê)
+	-Quản lý chi nhánh.
+		+ Thêm
+		+ Sửa
+	-Quản Lý hợp đồng thuê nhà
+		+ Thêm
+	- Quản lý đánh giá khách hàng
+		+ Thêm
+		+ Thống kê nhận xét
