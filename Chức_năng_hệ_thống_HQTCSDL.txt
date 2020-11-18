@@ -15,7 +15,10 @@
 	-Nhận xét nhà.
 	-Lập hợp đồng thuê nhà.
 	-Quản lý khách hàng thuê nhà(cho chủ nhà)
-	
+	-Tìm kiếm những khách hàng do Nv quản lý
+        -Tìm Nv quản lý của KHách hàng
+        -Lập hợp đồng bán nhà
+        -Tìm quá trình thuê nhà của khách
 	///////
 	-Quản lý Nhân Viên.
 		+ Thêm
