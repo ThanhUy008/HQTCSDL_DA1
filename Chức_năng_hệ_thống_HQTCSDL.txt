@@ -45,6 +45,8 @@
 		+ Sửa
 	-Quản Lý hợp đồng thuê nhà
 		+ Thêm
+		+ Xóa
+		+ Sửa
 	- Quản lý đánh giá khách hàng
 		+ Thêm
 		+ Thống kê nhận xét
