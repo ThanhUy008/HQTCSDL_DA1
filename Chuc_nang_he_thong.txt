@@ -87,7 +87,7 @@
 //Chức năng theo GUI:
 Chức năng chung: Đăng nhập
 User: 
-+Tìm nhà theo số phòng, địa chỉ, giá tiền từ x->y,loại nhà (Có thể không cần địa chỉ)
++Tìm nhà theo số phòng, địa chỉ, giá tiền từ x->y,loại nhà (Có thể không cần địa chỉ / Có thể tìm bằng riêng lẻ từng thuộc tính)
 +Yêu cầu nhà: Yêu cầu nhà theo loại nhà
 +Thông báo: Xem thông báo các nhà phù hợp yêu cầu
 +Cập nhật mật khẩu: Cập nhật lại mật khẩu
