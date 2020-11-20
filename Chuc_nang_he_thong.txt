@@ -81,3 +81,50 @@
 	- Quản lý đánh giá khách hàng
 		+ Thêm
 		+ Thống kê nhận xét
+
+
+
+//Chức năng theo GUI:
+Chức năng chung: Đăng nhập
+User: 
++Tìm nhà theo số phòng, địa chỉ, giá tiền từ x->y,loại nhà (Có thể không cần địa chỉ)
++Yêu cầu nhà: Yêu cầu nhà theo loại nhà
++Thông báo: Xem thông báo các nhà phù hợp yêu cầu
++Cập nhật mật khẩu: Cập nhật lại mật khẩu
+
+Nhân viên: (Trong các phần xem/tìm, có cả sửa và xóa nên vẫn phải làm)
++Quản lý nhà:
+	-Xem danh sách nhà 
+	-Thêm nhà
+	-Tìm nhà theo tên hoặc/và mã nhà
+	-Thống kê nhà theo số phòng, địa chỉ, giá tiền (có thể bỏ địa chỉ)
+	-Thêm đánh giá
+	-Nhà theo yêu cầu: Xem các nhà theo yêu cầu của KH mà chưa được thông báo đến khách hàng
++Quản lý khách hàng:
+	-Xem danh sách khách hàng
+	-Tìm khách hàng theo tên hoặc/và mã khách hàng
+	-Thêm yêu cầu nhà của khách hàng
+	-Thêm hợp đồng thuê nhà
+	-Thêm khách hàng
+	-Kết thúc hợp đồng
++Quản lý chủ nhà:
+	-Xem danh sách chủ nhà
+	-Tìm chủ nhà
+	-Thêm chủ nhà
++Cập nhật mật khẩu 
+Admin:
++Quản lý nhân viên:
+	-Xem danh sách NV
+	-Tìm kiếm NV
+	-Thêm NV
+	-Tăng lương
+	-Tính lương 1 NV
+	-Thống kê lương theo theo chi nhánh
++Quản lý khách hàng:
+	-Xem danh sách KH
+	-Tìm kiếm KH
+	-Xem lịch sử thuê của KH
++Quản lý chủ nhà:
+	-Xem danh sách chủ nhà
+	-Tìm kiếm chủ nhà
+	-Xem lịch sử hoạt động (đăng nhà, bán nhà)
