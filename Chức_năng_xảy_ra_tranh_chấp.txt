@@ -1,0 +1,4 @@
+* Thêm,Sửa hợp đồng thuê nhà
+   -lỗi:Nhiều khách có thể thuê 1 nhà,nhà đã thuê/bán thì có thể thuê/bán. 
+* Xóa,sửa hợp đồng thuê nhà
+   -lỗi: Nhà bị hủy hợp đồng nhưng chưa quay lại nhà chưa nhà thuê.
