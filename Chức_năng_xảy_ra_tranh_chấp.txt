@@ -1,8 +1,0 @@
-* Thêm nhà:
-   -lỗi: Nhà được thêm vào không nằm trong loại nhà nào của hệ thống quản lí
-* Xóa, Sửa nhà:
-   -lỗi: Nhà bị xóa, sửa đang trog tình trạng được cho thuê/bán
-* Thêm,Sửa hợp đồng thuê nhà:
-   -lỗi:Nhiều khách có thể thuê 1 nhà,nhà đã thuê/bán thì có thể thuê/bán. 
-* Xóa,sửa hợp đồng thuê nhà:
-   -lỗi: Nhà bị hủy hợp đồng nhưng chưa quay lại nhà chưa nhà thuê.
