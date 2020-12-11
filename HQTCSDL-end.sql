@@ -1,3 +1,6 @@
+drop database[QuanLyCongTy2020]
+go
+
 create database[QuanLyCongTy2020]
 go
 use [QuanLyCongTy2020]
@@ -56,6 +59,7 @@ create table [dbo].[NhanVien](
 	[GioiTinh] [nchar](1) not null,
 	[NgaySinh] [date] not null,
 	[TinhTrang] [dbo].[Flag] not null,
+	[Luong] [money] not null,
 	[SDT] [dbo].[Phone] null,
 	[ChiNhanh] [ID] not null,
 )
@@ -70,6 +74,8 @@ set ansi_nulls on
 go
 set quoted_identifier on
 go
+
+
 create table [dbo].[KhachHang](
 	[MaKhachHang] [ID] not null,
 	[Ten] [dbo].[Name] not null,
@@ -128,7 +134,7 @@ alter table [dbo].[Nha]
 add constraint [FK_NV_Nha] foreign key ([NVQuanLy]) references [dbo].[NhanVien]([MaNhanvien]);
 go
 alter table [dbo].[Nha]
-add constraint [FK_ChuNha_Nha] foreign key ([ChuNha]) references [dbo].[chunha]([MaChuNha]);
+add constraint [FK_ChuNha_Nha] foreign key ([ChuNha]) references [dbo].[ChuNha]([MaChuNha]);
 go
 alter table [dbo].[Nha]
 add constraint [FK_LoaiNha_Nha] foreign key ([LoaiNha]) references [dbo].[LoaiNha]([MaLoaiNha]);
@@ -139,6 +145,26 @@ set quoted_identifier on
 go
 
 
+create table [dbo].[ThongBaoKhachHang](
+	[MaNha] [int]  not null,
+	[MaKhachHang] [ID] not null,
+	[ThongBao] [Flag] not null,
+)
+go
+alter table [dbo].[ThongBaoKhachHang]
+add constraint [TBKhachHang_PK] primary key ([MaNha],[MaKhachHang]);
+go
+
+alter table [dbo].[ThongBaoKhachHang]
+add constraint [FK_Nha_ThongBaoKhachHang] foreign key ([MaNha]) references [dbo].[Nha]([MaNha]);
+go
+alter table [dbo].[ThongBaoKhachHang]
+add constraint [FK_KhachHang_TBKhachHang] foreign key ([MaKhachHang]) references [dbo].[KhachHang]([MaKhachHang]);
+go
+set ansi_nulls on
+go
+set quoted_identifier on
+go
 
 
 
