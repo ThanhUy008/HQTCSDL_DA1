@@ -555,47 +555,99 @@ end
 go
 
 -----------------------------------------------THẮNG-----------------------------------------------------------------
+use QuanLyCongTy2020
 go
---Giao tac them nha thue
+--------------------------
+-----------------Chức năng chủ nhà-------
 
-create proc ThemNhaThue(@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@giathue money,@yeucau varchar(20),@machunha int)
+--Hàm hỗ trợ thêm nhà thuê/bán
+--@sophong số phòng của nhà,
+--@diachi địa chỉ nhà,
+--@soluotxem số lượt xem nhà,
+--@ngaydang ngày đăng nhà,
+--@ngayhethang ngày hết hạng đăng nhà,
+--@kieunha 0/1 là nhà thuê/bán,
+--@loainha loại nhà,
+--@nvql mã nhân viên quản lý nhà,
+--@machunha mã chủ nhà .
+--TODO Thêm nhà vào bảng nhà.
+alter proc Them_nha (@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@kieunha bit,@loainha int,@nvql nvarchar(20),@machunha nvarchar(20))
+as
+begin tran 
+	insert into Nha with(Rowlock)(SoPhong,DiaChi,LuotXem,TinhTrang,NgayDang,NgayHetHan,KieuNha,LoaiNha,NVQuanLy,ChuNha)
+	values (@sophong,@diachi,@soluotxem,1,@ngaydang,@ngayhethang,@kieunha,@loainha,@nvql,@machunha)
+commit tran
+go
+exec them_nha 1,'thang hung',3,'2020-11-11','2020-12-12',0,1,NV10000,LL10000
+go
+--Hàm hỗ trợ thêm nhà thuê
+--@sophong số phòng của nhà,
+--@diachi địa chỉ nhà,
+--@soluotxem số lượt xem nhà,
+--@ngaydang ngày đăng nhà,
+--@ngayhethang ngày hết hạng đăng nhà,
+--@giathue giá tiền thuê nhà
+--@loainha loại nhà,
+--@nvql mã nhân viên quản lý nhà,
+--@machunha mã chủ nhà .
+--TODO Thêm nhà thuê vào data.
+alter proc Them_nhathue(@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@giathue money,@loainha int,@nvql varchar(20),@machunha varchar(20))
 as
 begin tran
-	insert into Nha with(Rowlock)(SoPhong,DiaChi,LuotXem,NgayDang,NgayHetHan,ChuNha)
-	values (@sophong,@diachi,@soluotxem,@ngaydang,@ngayhethang,@machunha)
-	insert into NhaThue with(Rowlock)(TienThue)
-	values(@giathue)
+	exec Them_nha @sophong,@diachi,@soluotxem,@ngaydang,@ngayhethang,0,@loainha,@nvql,@machunha
+	declare @manha int
+	select @manha=Max(Nha.MaNha) from Nha
+	insert into NhaThue with(Rowlock)(MaNha,TienThue)
+	values(@manha,@giathue)
 commit tran
---giao tac them nha ban
-create proc ThemNhaBan(@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@giathue money,@yeucau text,@machunha int)
+go
+exec Them_nhathue 1,'thang hung',3,'2020-11-11','2020-12-12',6666,4,NV10000,LL10000
+go
+--Hàm hỗ trợ thêm nhà Bán
+--@sophong số phòng của nhà,
+--@diachi địa chỉ nhà,
+--@soluotxem số lượt xem nhà,
+--@ngaydang ngày đăng nhà,
+--@ngayhethang ngày hết hạng đăng nhà,
+--@giaban giá tiền bán nhà,
+--@yeucau điều kiện bán nhà,
+--@loainha loại nhà,
+--@nvql mã nhân viên quản lý nhà,
+--@machunha mã chủ nhà .
+--TODO Thêm nhà bán vào data.
+alter proc Them_nhaban(@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@giaban money,@yeucau text,@loainha int,@nvql varchar(20),@machunha varchar(20))
 as
 begin tran
-	insert into Nha with(Rowlock)(SoPhong,DiaChi,LuotXem,NgayDang,NgayHetHan,ChuNha)
-	values (@sophong,@diachi,@soluotxem,@ngaydang,@ngayhethang,@machunha)
-	insert into NhaBan with(Rowlock)(GiaBan,DieuKien)
-	values(@giathue,@yeucau)
+	exec Them_nha @sophong,@diachi,@soluotxem,@ngaydang,@ngayhethang,1,@loainha,@nvql,@machunha
+	declare @manha int
+	select @manha=Max(Nha.MaNha) from Nha
+	insert into NhaBan with(Rowlock)(MaNha,GiaBan,DieuKien)
+	values(@manha,@giaban,@yeucau)
 commit tran
---giao tac tim kiem nha cua chu nha
-create proc TimNha(@manha int,@machunha int)
+go
+exec Them_nhaban 1,'thang hung',3,'2020-11-11','2020-12-12',6666,'chu nha phai dep trai',4,NV10000,LL10000
+go
+--Hàm tìm nhà của chủ nhà
+--@manha mã nhà cần tìm,
+--@machunha mã chủ nhà của nhà cần tìm
+--TODO Tìm nhà cho chủ nhà.
+alter proc TimNha(@manha int,@machunha nvarchar(20))
 as
 begin tran
 	set tran isolation level Read committed
-	select Nha.MaNha,Nha.DiaChi,QuaTrinhThue.KhachHang,QuaTrinhThue.NgayBatDau from Nha,QuaTrinhThue where Nha.ChuNha=@machunha and QuaTrinhThue.NhaThue=Nha.MaNha
+	select Nha.MaNha,Nha.DiaChi,QuaTrinhThue.KhachHang,QuaTrinhThue.NgayBatDau,QuaTrinhThue.NgayKetThuc from Nha,QuaTrinhThue where Nha.ChuNha=@machunha and QuaTrinhThue.NhaThue=Nha.MaNha and nha.MaNha=@manha
 commit
---giao tac xem danh sach nha
-create proc XemDanhSachNha(@machunha int)
+go
+exec TimNha 2,LL10021
+go
+--Hàm xem danh sách nhà của chủ nhà
+--@machunha mã chủ nhà
+--TODO: Xem danh sách tất cả nhà của chủ nhà
+alter proc XemDanhSachNha(@machunha nvarchar(20))
 as
 begin tran
-set tran isolation level Read committed
-	select * from Nha where Nha.ChuNha=@machunha
+	set tran isolation level Read committed 
+	select * from Nha where nha.ChuNha=@machunha
 commit
 go
---giao tac xem cap nhat mat khau 
-create proc CapnhatMK_KH(@machunha int,@mkcu nvarchar(20), @mkmoi nvarchar(20))
-as
-	if (@mkcu=(select Password from AccountChuNha where IDChuNha=@machunha))
-	begin
-		update IDChuNha with(updlock)
-		set Password = @mkmoi
-	end
-go
+exec XemDanhSachNha LL10021
