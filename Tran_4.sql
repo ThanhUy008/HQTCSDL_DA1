@@ -8,6 +8,7 @@ go
 --@str đưa vào là NV nếu là nhân viên và tương tự cho các đối tượng khác
 --@num là STT max của nhân viên(tương tự các đối tượng khác) trong bảng
 --TODO: mày xóa hết mấy cái STT rồi thì hàm này còn xài được không ?
+--TODO: Nguyên cái proc tính lương nhân viên thống kê lương đ xài được. chán thật sự.
 go
 create function ThemMaSo(@str nvarchar(2), @num int)
 returns nvarchar(20) as
@@ -55,8 +56,12 @@ go
 -- giao tac doc danh sach nhan vien con lam viec trong cong ty
 create proc XemDanhSachNhanVien
 as
+begin tran
+	waitfor delay '0:00:05'
 	select * from [dbo].[NhanVien]
 	where TinhTrang=1
+
+commit tran
 go
 
 exec XemDanhSachNhanVien
@@ -66,6 +71,7 @@ exec XemDanhSachNhanVien
  go
 create proc ThemNhanVien(@ten nvarchar(50),@diachi nvarchar(100), @gioitinh Nvarchar(1),@ngaysinh date,@luong money, @sdt nvarchar(20),@chinhanh Nvarchar(20))
 as
+begin tran
 	declare @num int =(select count(*) from NhanVien)
 	if (@num is null) set @num=0
 	declare @manv nvarchar(20)= dbo.ThemMaSo('NV',@num)
@@ -79,9 +85,19 @@ as
 		set @num1=(select RAND())*1000000
 	end
 	declare @res nvarchar(100)=(Select CAST(@num1 as nvarchar))
-	insert into AccountNhanVien (IDNhanVien,Password) values (@manv, @res)
+	insert into AccountNhanVien (IDNhanVien,Password) values (@manv, '123456789')
 	-- them vao lich su tra luong
+	if(exists(select * from NhanVien where NhanVien.MaNhanVien = @manv))
+	begin
+		raiserror('Employee already exists',16,1) 
+		rollback
+	end
+	else
+	begin
+	waitfor delay '0:00:05'
 	insert into LichSuTraLuong (MaNhanVien,NgayThayDoi,Luong) values (@manv,GETDATE(),@luong)
+	commit tran
+	end
 go
 
 exec ThemNhanVien N'Nguyễn Tèo',N'Tp.HCM','M','2000-04-20',15.123,'01234567', 'CN10001'
@@ -91,8 +107,10 @@ go
 --giao tac tim kiem nhan vien
 create proc TimKiemNhanVien(@manhanvien nvarchar(20))
 as
+begin tran
 	select* from [dbo].[NhanVien]
-	where MaNhanVien=@manhanvien
+	where MaNhanVien=@manhanvien and TinhTrang = 1
+commit tran
 go
 	exec TimKiemNhanVien 'NV10000'
 go
@@ -101,120 +119,79 @@ go
 --NOTE: Ưng thì kiểm tra xem Mã NV có tồn tại không nữa.
 create proc TangLuong(@manhanvien nvarchar(20),@luongmoi money)
 as
+begin tran
 	declare @ngay1 date=getdate()
 	declare @ngay2 date=(select max(NgayThayDoi) from LichSuTraLuong where MaNhanVien=@manhanvien)
-	if( @ngay1=@ngay2)
+	if(not exists (Select * from NhanVien where NhanVien.MaNhanVien = @manhanvien)) 
 	begin
-		 update LichSuTraLuong set Luong=@luongmoi where MaNhanVien=@manhanvien and NgayThayDoi=@ngay1
+		raiserror('Not exist Employee',16,1) 
+		rollback
 	end
-
-		else insert into [dbo].[LichSuTraLuong](MaNhanVien,NgayThayDoi,Luong) values ( @manhanvien, GETDATE(),@luongmoi)
+	
+	else
+	begin 
+		if( @ngay1=@ngay2)
+		begin
+			 update LichSuTraLuong set Luong=@luongmoi where MaNhanVien=@manhanvien and NgayThayDoi=@ngay1
+			 
+		end
+			else insert into [dbo].[LichSuTraLuong](MaNhanVien,NgayThayDoi,Luong) values ( @manhanvien, GETDATE(),@luongmoi)
+		
+		update NhanVien set Luong = @luongmoi where MaNhanVien = @manhanvien
+	
+	commit tran
+	end
 go
 
 exec TangLuong 'NV10000',24.5234
+go
 select * from LichSuTraLuong
 
 go
 
--- ngay tang luong gan nhat voi ngay nhap vao
-create function NgayTangLuongGanNhat(@manhanvien nvarchar(20), @ngay date)
-returns date as
-begin
- return (select ls1.NgayThayDoi from LichSuTraLuong ls1 where @ngay>=ls1.NgayThayDoi and MaNhanVien=@manhanvien -- ngay thay doi luong gan nhat voi ngay dua vao
-							and ls1.NgayThayDoi>=all (select ls2.NgayThayDoi from LichSuTraLuong ls2 
-							where @ngay>=ls2.NgayThayDoi and MaNhanVien=@manhanvien))
-end
 
-go
--- tinh luong 1 ngay cua 1 nhan vien
---TODO: Nhân viên mới thêm vô cũng cần có lương chứ ?
-create function TinhLuongMotNgay(@manhanvien nvarchar(20),@ngay date)
-returns float
-as
-begin
-	declare @ngaytangluong date= dbo.NgayTangLuongGanNhat(@manhanvien,@ngay)
-	if (@ngaytangluong is null) return 0-- nếu nhân viên đó chưa được thêm vào lich sử trả lương (chưa đi làm)
-	declare @n datetime
-	set @n=(select(DATEADD(d,-1, DATEADD(mm, DATEDIFF(mm, 0 ,@ngay)+1, 0))))-- lấy ngày cuối cùng của tháng đó
-	return ((select Luong from LichSuTraLuong where MaNhanVien=@manhanvien and NgayThayDoi=@ngaytangluong)/(day(@n)))	
-end
-go
--- giao tac tinh luong nhan vien tu ngay bat dau den ngay ket thuc
-create function TinhLuongNhanVien(@manhanvien nvarchar(20),@ngaybatdau date, @ngayketthuc date)
-returns float
-as
-begin
-	declare @ngay1 date=@ngaybatdau
-	declare @ngay2 date=@ngayketthuc
-	declare @res float = 0
-	while(@ngay1<=@ngay2)
-	begin
-		declare @n datetime
-		set @n=(select(DATEADD(d,-1, DATEADD(mm, DATEDIFF(mm, 0 ,@ngay1)+1, 0))))
-		set @res=@res+ dbo.TinhLuongMotNgay(@manhanvien,@ngay1)
-		if(DAY(@ngay1)=DAY(@n))
-		begin
-			set @ngay1=DATEADD(DAY,-DAY(@ngay1)+1,@ngay1)
-			if(MONTH(@ngay1) <12)
-				set @ngay1=DATEADD(month,1,@ngay1)
-			else
-			begin
-				set @ngay1=DATEADD(month,-11,@ngay1)
-				set @ngay1=DATEADD(year,1,@ngay1)
-			end
-		end
-		else
-		set @ngay1=dateadd(day,1,@ngay1)
-	end
-	return @res	
-end
-go
--- giao tac tinh luong cua 1 chi nhanh tu ngay bat dau den ngay ket thuc (cai nay bo k lam nua)
-create function ThongKeLuong(@machinhanh nvarchar(20), @ngaybatdau date, @ngayketthuc date)
-returns float
-as
-begin
-	declare @res float=0
-	declare @idmax int = (select MAX(MaNhanVien) from NhanVien where ChiNhanh=@machinhanh) 
-	while(@idmax >=0)
-	begin
-		if((select MaNhanVien from NhanVien where MaNhanVien=@idmax and ChiNhanh=@machinhanh) is not null)
-			set @res=@res+dbo.TinhLuongNV(@idmax,@ngaybatdau,@ngayketthuc)
-		set @idmax=@idmax-1;
-	end
-	return @res
-end
-go
 --giao tac xem danh sach khach hang
 create proc XemDanhSachKhachHang
 as
+begin tran
 	select* from KhachHang
+commit tran
 go
 -- giao tac tim kiem khach hang
 create proc TimKiemKhachHang(@makhachhang nvarchar(20))
 as
+begin tran
 	select* from KhachHang where MaKhachHang=@makhachhang
+commit tran
 go
 --giao tac xem lich su thue
 create proc XemLichSuthue(@makhachhang nvarchar(20))
 as
+begin tran
 	select kh.Ten, kh.SDT,qt.NhaThue,qt.NgayBatDau,qt.NgayKetThuc from KhachHang kh,QuaTrinhThue qt
 	where qt.KhachHang=@makhachhang and qt.KhachHang=kh.MaKhachHang
+commit tran
 go
 --giao tac xem danh sach chu nha
 create proc XemDanhSachChuNha
 as
+begin tran
 	select * from ChuNha
+commit tran
 go
 -- giao tac tim kiem chu nha
 create proc TimKiemChuNha(@chunha nvarchar(20))
 as
+begin tran
 	select * from ChuNha where MaChuNha=@chunha
+commit tran
 go
 --giao tac xem lich su hoat dong cua chu nha
 create proc XemLichSuHoatDongCuaChuNha(@chunha nvarchar(20))
 as
+begin tran
 	select n.MaNha,n.NgayDang,n.NgayHetHan from Nha n where n.ChuNha=@chunha and n.NgayDang is not null
+commit tran
 go
 
 
@@ -223,43 +200,52 @@ go
 -- giao tac tim nha
 create proc TimNha_SoPhong(@sophong smallint, @kieunha bit)
 as
+begin tran
 	if (@kieunha=1)
 		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nb.GiaBan from Nha n, NhaBan nb where SoPhong=@sophong and KieuNha=@kieunha
 	else
 		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nt.TienThue from Nha n, NhaThue nt where SoPhong=@sophong and KieuNha=@kieunha
+commit tran
 go
 --tim nha theo dia chi
 create proc TimNha_DiaChi(@diachi nvarchar(100), @kieunha bit)
 as
+begin tran
 	if (@kieunha=1)
 		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nb.GiaBan from Nha n, NhaBan nb where DiaChi=@diachi and KieuNha=@kieunha
 	else
 		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nt.TienThue from Nha n, NhaThue nt where DiaChi=@diachi and KieuNha=@kieunha
+commit tran
 go
 -- tim nha theo du 3 tieu chi
 create proc TimNha(@sophong smallint, @diachi nvarchar(100),@gia1 money,@gia2 money,@kieunha bit)
 as
-
+begin tran
 	if (@kieunha=1)
 		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nb.GiaBan from Nha n, NhaBan nb where DiaChi=@diachi and KieuNha=@kieunha
 																									and SoPhong=@sophong and GiaBan>=@gia1 and GiaBan<=@gia2
 	else
 		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nt.TienThue from Nha n, NhaThue nt where DiaChi=@diachi and KieuNha=@kieunha
 																									   and SoPhong=@sophong and TienThue>=@gia1 and TienThue <=@gia2
+commit tran
 go
 -- giao tac yeu cau nha
 create proc YeuCauNha(@khachhang nvarchar(20), @loainha smallint)
 as
+begin tran
 	insert into YeuCauKH(KhachHang,LoaiNha) values (@khachhang,@loainha)
+commit tran
 go
 -- giao tac doi mat kau
 create proc DoiMatKhau_KH(@khachhang nvarchar(20),@mkcu nvarchar(100), @mkmoi nvarchar(100))
 as
+begin tran
 	if (@mkcu=(select Password from AccountKhachHang where IDKhachHang=@khachhang))
 	begin
 		update AccountKhachHang
 		set Password = @mkmoi
 	end
+commit tran
 go
 -----------------------------------------------TRÂM------------------------------------------------------------------
 go
@@ -268,35 +254,36 @@ go
 -- Xem danh sách nhà
 create proc XemDanhSachNha
 as
-begin
+begin tran
 	select * from [dbo].[Nha]
-end
-
+commit tran
+go
 -- Tìm nhà
-create proc TimNha(@manha int)
+create proc NV_TimNha(@manha int)
 as
-begin
+begin tran
 	select* from [dbo].[Nha]
 	where MaNha= @manha
-end
-
+commit tran
+go
 -- Sửa thông tin nhà
 
 -- sửa lượt xem
 create proc SuaTTN_LuotXem (@manha int, @luotxem int)
 as
-begin
+begin tran
 	update [dbo].[Nha] set LuotXem= @luotxem
 	where MaNha= @manha
-end
+commit tran
+go
 -- sửa tình trạng
 create proc SuaTTN_TinhTrang (@manha int, @tinhtrang int)
 as
-begin
+begin tran
 	update [dbo].[Nha] set TinhTrang= @tinhtrang
 	where MaNha= @manha
-end
-
+commit tran
+go
 -- sửa ngày đăng
 create proc SuaTTN_NgayDang (@manha int, @ngaydang date)
 as
@@ -304,30 +291,31 @@ begin
 	update [dbo].[Nha] set NgayDang= @ngaydang
 	where MaNha= @manha
 end
-
+go
 -- sửa ngày hết hạn
 create proc SuaTTN_NgayHetHan (@manha int, @ngayhethan date)
 as
-begin
+begin tran
 	update [dbo].[Nha] set NgayHetHan= @ngayhethan
 	where MaNha= @manha
-end
-
+commit tran
+go
 -- sửa loại nhà
 create proc SuaThongTinNha (@manha int, @loainha smallint)
 as
-begin
+begin tran
 	update [dbo].[Nha] set LoaiNha= @loainha
 	where MaNha= @manha
-end
-
+commit tran
+go
 -- Xóa thông tin nhà
+--TODO: xài k được
 create proc XoaThongTinNha(@manha int)
 as
-begin
+begin tran
 	delete from [dbo].[Nha] where MaNha= @manha
-end
-
+commit tran
+go
 -- Thêm nhà
 -- tình trạng: 0: có sẵn, 1: đã cho thuê/ bán
 -- kiểu nhà: 0: nhà bán, 1: nhà thuê
@@ -335,80 +323,82 @@ end
 -- nhà thuê
 create proc ThemNhaThue (@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @tienthue money, @nvquanly nvarchar(20), @chunha nvarchar(20), @loainha smallint)
 as
-begin
+begin tran
 	insert into [dbo].[Nha](SoPhong, DiaChi, LuotXem, TinhTrang, NgayDang, NgayHetHan, KieuNha, NVQuanLy, ChuNha, LoaiNha)
 	values (@sophong, @diachi, @luotxem, 0, @ngaydang, @ngayhethan, 1, @NVquanly, @chunha, @loainha)
 	insert into [dbo].[NhaThue](TienThue)
 	values (@tienthue)
-end
-
+commit tran
+go
 -- nhà bán
 create proc ThemNhaBan (@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @giaban money, @nvquanly nvarchar(20), @chunha nvarchar(20), @loainha smallint)
 as
-begin
+begin tran
 	insert into [dbo].[Nha](SoPhong, DiaChi, LuotXem, TinhTrang, NgayDang, NgayHetHan, KieuNha, NVQuanLy, ChuNha, LoaiNha)
 	values (@sophong, @diachi, @luotxem, 0, @ngaydang, @ngayhethan, 0, @NVquanly, @chunha, @loainha)
 	insert into [dbo].[NhaBan](GiaBan)
 	values (@giaban)
-end
-
+commit tran
+go
 -- Thống kê nhà
 -- theo phòng
 create proc TimNhaTheoPhong(@sophong smallint)
 as
-begin
+begin tran
 	select* from [dbo].[Nha]
 	where SoPhong= @sophong
-end
-
+commit tran
+go
 --theo địa chỉ
 create proc TimNhaTheoDiaChi(@diachi nvarchar(100))
 as
-begin
+begin tran
 	select* from [dbo].[Nha]
 	where DiaChi= @diachi
-end
-
+commit tran
+go
 --theo giá từ X-> Y
 -- nhà thuê
 create proc TimNhaTheoGiaThue(@X money, @Y money)
 as
-begin
+begin tran
 	select* from [dbo].[Nha], [dbo].[NhaThue]
 	where Nha.MaNha= NhaThue.MaNha and @X<= TienThue and TienThue<= @Y
-end
+commit tran
+go
 -- nhà bán
 create proc TimNhaTheoGiaBan(@X money, @Y money)
 as
-begin
+begin tran
 	select* from [dbo].[Nha], [dbo].[NhaBan]
 	where Nha.MaNha= NhaBan.MaNha and @X<= GiaBan and GiaBan<= @Y
-end
-
+commit tran
+go
 --theo cả 3
 -- nhà thuê
 create proc ThongKeNhaThue(@sophong smallint, @diachi nvarchar(100), @X money, @Y money)
-as
-begin
+as 
+begin tran
 	select* from [dbo].[Nha], [dbo].[NhaThue]
 	where SoPhong=@sophong and DiaChi= @diachi and Nha.MaNha= NhaThue.MaNha and @X<= TienThue and TienThue<= @Y
-end
+commit tran
+go
 -- nhà bán
 create proc ThongKeNhaBan(@sophong smallint, @diachi nvarchar(100), @X money, @Y money)
 as
-begin
+begin tran
 	select* from [dbo].[Nha], [dbo].[NhaBan]
 	where SoPhong=@sophong and DiaChi= @diachi and Nha.MaNha= NhaBan.MaNha and @X<= GiaBan and GiaBan<= @Y
-end
-
+commit tran
+go
 -- Thêm đánh giá
 create proc ThemDanhGia (@khachhang nvarchar(20), @nha int, @ngayxem date, @nhanxet text)
 as
-begin
+begin tran
 	insert into [dbo].[XemNha](KhachHang, Nha, NgayXem, NhanXet)
 	values (@khachhang, @nha, @ngayxem, @nhanxet)
-end
-
+commit tran
+go
 -- Nhà theo yêu cầu: nhận yêu cầu từ bảng YeuCauKH và thông báo tới khách hàng nhà theo yêu cầu
 -- thông báo khách hàng: 1: đã thông báo
 -- Thọ bảo bảng này bỏ ròi hông cần làm
@@ -425,34 +415,35 @@ end
 -- Thêm yêu cầu của khách hàng
 create proc ThemYeuCau (@khachhang nvarchar(20), @loainha smallint)
 as
-begin
+begin tran
 	insert into [dbo].[YeuCauKH](KhachHang, LoaiNha)
 	values (@khachhang, @loainha) 
-end
-
+commit tran
+go
 -- Thêm hợp đồng
 create proc ThemHopDong (@khachhang nvarchar(20), @nhathue int, @ngaybatdau date )
 as
-begin
+begin tran
 	insert into [dbo].[QuaTrinhThue](KhachHang, NhaThue, NgayBatDau)
 	values (@khachhang, @nhathue, @ngaybatdau) 
-end
-
+commit tran
+go
 -- Kết thúc hợp đồng
 create proc KetThucHopDong (@khachhang nvarchar(20), @nhathue int, @ngaybatdau date, @ngayketthuc date)
 as
-begin
+begin tran
 	update [dbo].[QuaTrinhThue] set NgayKetThuc= @ngayketthuc
 	where KhachHang= @khachhang and NhaThue= @nhathue and NgayBatDau= @ngaybatdau
-end
-
+commit tran
+go
 -- Thêm khách hàng
 create proc ThemKhachHang (@ten nvarchar(100), @diachi nvarchar(100), @sdt nvarchar(10), @chinhanhquanly nvarchar(20))
 as
-begin
+begin tran
 	insert into [dbo].[KhachHang](Ten, DiaChi, SDT, ChiNhanhQuanLy)
 	values (@ten, @diachi, @sdt, @chinhanhquanly) 
-end
+commit tran
+go
 -- Xem danh sách chủ nhà
 -- giống admin
 
@@ -465,98 +456,99 @@ end
 -- Thêm chủ nhà
 create proc ThemChuNha (@tenchunha nvarchar(100), @tinhtrang bit, @diachi nvarchar(100), @loaichunha bit, @sdt nvarchar(10))
 as
-begin
+begin tran
 	insert into [dbo].[ChuNha](TenChuNha, TinhTrang, DiaChi, LoaiChuNha, SDT)
 	values (@tenchunha, @tinhtrang, @diachi, @loaichunha, @sdt)
-end
-
+commit tran
+go
 -- Cập nhật mật khẩu
 create proc DoiMatKhau_NV(@idnhanvien nvarchar(20), @matkhaucu nvarchar(100), @matkhaumoi nvarchar(100))
 as
+begin tran
 	if (@matkhaucu=(select Password from AccountNhanVien where IDNhanVien= @idnhanvien))
 	begin
 		update AccountNhanVien with(updlock)
 		set Password = @matkhaumoi
 	end
+commit tran
 go
 -----------------------------------------------VI--------------------------------------------------------------------
 -- Sua thong tin nhan vien
 create proc SuaTenNhanVien(@manv int, @ten nvarchar(50))
 as
-begin
+begin tran
 	update [dbo].[NhanVien] set Ten = @ten
 	where MaNhanVien= @manv
-end
+commit tran
 go
 
 create proc SuaDiaChiNhanVien(@manv int, @diachi nvarchar(50))
 as
-begin
+begin tran
 	update [dbo].[NhanVien] set DiaChi = @diachi
 	where MaNhanVien= @manv
-end
+commit tran
 go
 
 create proc SuaGioiTinhNhanVien(@manv int,  @gioitinh nchar(1))
 as
-begin
+begin tran
 	update [dbo].[NhanVien] set GioiTinh = @gioitinh
 	where MaNhanVien= @manv
-end
+commit tran
 go
 
 create proc SuaNgaySinhNhanVien(@manv int, @ngaysinh date, @sdt nvarchar( 20))
 as
-begin
+begin tran
 	update [dbo].[NhanVien] set NgaySinh = @ngaysinh
 	where MaNhanVien= @manv
-end
+commit tran
 go
 
 create proc SuaSDTNhanVien(@manv int, @sdt nvarchar( 20))
 as
-begin
+begin tran
 	update [dbo].[NhanVien] set SDT = @sdt
 	where MaNhanVien= @manv
-end
+commit tran
 go
 
 -- Sua thong tin khach hang
 create proc SuaTenKhachHang(@makh int, @ten nvarchar(50))
 as
-begin
+begin tran
 	update [dbo].[KhachHang] set Ten = @ten
 	where MaKhachHang = @makh
-end
+commit tran
 go
 
 create proc SuaDiaChiKhachHang(@makh int, @diachi nvarchar(50))
 as
-begin
+begin tran
 	update [dbo].[KhachHang] set DiaChi = @diachi
 	where MaKhachHang = @makh
-end
+commit tran
 go
 
-create proc SuaSDTKhachHang(@makh int@sdt nvarchar( 20))
+create proc SuaSDTKhachHang(@makh int,@sdt nvarchar(20))
 as
-begin
+begin tran
 	update [dbo].[KhachHang] set SDT = @sdt
 	where MaKhachHang = @makh
-end
+commit tran
 go
 
 create proc SuaChiNhanhQLKhachHang(@makh int, @chinhanhql smallint)
 as
-begin
+begin tran
 	update [dbo].[KhachHang] set ChiNhanhQuanLy = @chinhanhql
 	where MaKhachHang = @makh
-end
+commit tran
 go
 
 -----------------------------------------------THẮNG-----------------------------------------------------------------
-use QuanLyCongTy2020
-go
+
 --------------------------
 -----------------Chức năng chủ nhà-------
 
@@ -571,7 +563,7 @@ go
 --@nvql mã nhân viên quản lý nhà,
 --@machunha mã chủ nhà .
 --TODO Thêm nhà vào bảng nhà.
-alter proc Them_nha (@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@kieunha bit,@loainha int,@nvql nvarchar(20),@machunha nvarchar(20))
+create proc Them_nha (@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@kieunha bit,@loainha int,@nvql nvarchar(20),@machunha nvarchar(20))
 as
 begin tran 
 	insert into Nha with(Rowlock)(SoPhong,DiaChi,LuotXem,TinhTrang,NgayDang,NgayHetHan,KieuNha,LoaiNha,NVQuanLy,ChuNha)
@@ -591,7 +583,7 @@ go
 --@nvql mã nhân viên quản lý nhà,
 --@machunha mã chủ nhà .
 --TODO Thêm nhà thuê vào data.
-alter proc Them_nhathue(@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@giathue money,@loainha int,@nvql varchar(20),@machunha varchar(20))
+create proc Them_nhathue(@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@giathue money,@loainha int,@nvql varchar(20),@machunha varchar(20))
 as
 begin tran
 	exec Them_nha @sophong,@diachi,@soluotxem,@ngaydang,@ngayhethang,0,@loainha,@nvql,@machunha
@@ -615,7 +607,7 @@ go
 --@nvql mã nhân viên quản lý nhà,
 --@machunha mã chủ nhà .
 --TODO Thêm nhà bán vào data.
-alter proc Them_nhaban(@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@giaban money,@yeucau text,@loainha int,@nvql varchar(20),@machunha varchar(20))
+create proc Them_nhaban(@sophong smallint,@diachi nvarchar(100), @soluotxem tinyint,@ngaydang date, @ngayhethang date,@giaban money,@yeucau text,@loainha int,@nvql varchar(20),@machunha varchar(20))
 as
 begin tran
 	exec Them_nha @sophong,@diachi,@soluotxem,@ngaydang,@ngayhethang,1,@loainha,@nvql,@machunha
@@ -631,14 +623,14 @@ go
 --@manha mã nhà cần tìm,
 --@machunha mã chủ nhà của nhà cần tìm
 --TODO Tìm nhà cho chủ nhà.
-alter proc TimNha(@manha int,@machunha nvarchar(20))
+create proc CN_TimNha(@manha int,@machunha nvarchar(20))
 as
 begin tran
 	set tran isolation level Read committed
 	select Nha.MaNha,Nha.DiaChi,QuaTrinhThue.KhachHang,QuaTrinhThue.NgayBatDau,QuaTrinhThue.NgayKetThuc from Nha,QuaTrinhThue where Nha.ChuNha=@machunha and QuaTrinhThue.NhaThue=Nha.MaNha and nha.MaNha=@manha
 commit
 go
-exec TimNha 2,LL10021
+exec CN_TimNha 2,LL10021
 go
 --Hàm xem danh sách nhà của chủ nhà
 --@machunha mã chủ nhà
@@ -651,3 +643,366 @@ begin tran
 commit
 go
 exec XemDanhSachNha LL10021
+GO
+--------------------------------------FIX FUNCTION--------------------------
+--Tinh Luong NV
+
+CREATE FUNCTION f_changInPeriod(@first DATE,@last DATE,@id nvarchar(20))
+RETURNS TABLE
+AS
+return 		SELECT *
+			FROM (
+				  SELECT * , ROW_NUMBER() OVER (
+				  PARTITION BY LichSuTraLuong.MaNhanVien
+				  ORDER BY LichSuTraLuong.NgayThayDoi DESC) row_num
+  				  FROM LichSuTraLuong 
+				  WHERE LichSuTraLuong.MaNhanVien = @id AND LichSuTraLuong.NgayThayDoi <= @last AND LichSuTraLuong.NgayThayDoi >= @first) temp
+			--WHERE temp.row_num = 1
+
+GO
+
+CREATE FUNCTION f_OldRate(@first DATE,@last DATE, @id nvarchar(20))
+RETURNS TABLE
+AS
+return		SELECT *
+			FROM (
+				  SELECT * , ROW_NUMBER() OVER (
+				  PARTITION BY LichSuTraLuong.MaNhanVien
+				  ORDER BY LichSuTraLuong.NgayThayDoi DESC) row_num
+  				  FROM LichSuTraLuong 
+				  WHERE LichSuTraLuong.MaNhanVien = @id AND LichSuTraLuong.NgayThayDoi <= @last) temp
+			WHERE temp.row_num = 1
+GO
+
+
+
+
+
+
+CREATE PROC admin_TinhLuongNhanVien(@id nvarchar(20),@firstDay DATE,@lastDay DATE)
+
+AS
+BEGIN TRAN
+DECLARE @temptable TABLE
+(
+	id nvarchar(20),
+	TotalPayment money,
+	firstday DATETIME,
+	lastday DATETIME,
+	currentRate money
+
+)
+DECLARE @oldday DATETIME
+DECLARE @newday DATETIME
+--SET @newday = @firstDayOfYear
+DECLARE @tempmoney int
+SET @tempmoney =0;
+DECLARE @i int;
+DECLARE @oldsalary money
+DECLARE @maxrownum int
+DECLARE @hasChange bit
+DECLARE @hasOldRate bit
+DECLARE @currRate money
+			
+IF(NOT EXISTS (SELECT * FROM dbo.NhanVien WHERE dbo.NhanVien.MaNhanVien = @id and NhanVien.TinhTrang = 1))
+	BEGIN 
+			raiserror('Not exist Employee',16,1) 
+			rollback tran
+			return
+	END
+ELSE
+	BEGIN 
+
+		SET @currRate = (SELECT NhanVien.Luong FROM NhanVien WHERE NhanVien.MaNhanVien = @id)
+
+		
+		IF(EXISTS (SELECT * FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id)))
+			SET @hasChange = 1
+		ELSE 
+			SET @hasChange = 0
+
+		IF(EXISTS (SELECT * FROM dbo.f_OldRate(@firstDay,@lastDay,@id)))
+			SET @hasOldRate = 1
+		ELSE 
+			SET @hasOldRate = 0
+
+		WAITFOR DELAY '0:00:05'
+
+		SET @maxrownum =  (SELECT MAX(temp.row_num) FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as temp)
+		
+				--Change salary rate in period
+				IF(@hasChange >= 1 AND @hasOldRate >= 1)
+					BEGIN 
+						IF(@maxrownum < 2)
+			
+							BEGIN
+								 SET @tempmoney = (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,@firstDay,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,@firstDay,newrate.NgayThayDoi)%7)))*8 + newrate.Luong*(((DATEDIFF(day,newrate.NgayThayDoi,@lastDay)/7)*5 + DATEDIFF(day,newrate.NgayThayDoi,@lastDay)%7)) *8)
+								 FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_OldRate(@firstDay,@lastDay,@id) as oldrate)
+							END
+						ELSE
+							BEGIN
+
+								--salary from last year
+					
+
+								SET @tempmoney = @tempmoney + 
+									(SELECT SUM(oldrate.Luong*(((DATEDIFF(day,@firstDay,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,@firstDay,newrate.NgayThayDoi)%7)))*8) 
+									FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_OldRate(@firstDay,@lastDay,@id) as oldrate
+									WHERE newrate.row_num = @maxrownum);
+
+								SET @oldday = (SELECT temp.NgayThayDoi FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) temp WHERE temp.row_num = @maxrownum);
+						
+
+								--change in year
+								SET @i = @maxrownum
+								WHILE(@i > 1)
+								BEGIN
+									SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*((DATEDIFF(day,@oldday,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,@oldday,newrate.NgayThayDoi)%7))*8)
+									FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+									WHERE newrate.row_num = @i - 1 AND oldrate.row_num = @i) 
+						
+									SET @oldday = (SELECT newrate.NgayThayDoi FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) newrate WHERE newrate.row_num = @i - 1) 
+						
+									SET @i = @i - 1
+								END
+
+								SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,@oldday,@lastDay)/7)*5 + (DATEDIFF(day,@oldday,@lastDay)%7)))*8)
+								FROM  dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+								WHERE oldrate.row_num = @i) 
+
+						END
+					END
+				--case just work this year			
+				ELSE IF(@hasChange >= 1 AND @hasOldRate <= 0)
+					BEGIN
+						IF(@maxrownum < 2)	
+						BEGIN
+								 SET @tempmoney = (SELECT SUM(newrate.Luong*(((DATEDIFF(day,newrate.NgayThayDoi,@lastDay)/7)*5 + DATEDIFF(day,newrate.NgayThayDoi,@lastDay)%7)*8)) as TotalPay
+								 FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate)
+						END
+						ELSE
+						BEGIN
+							 SET @i = @maxrownum
+							 SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,oldrate.NgayThayDoi,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,oldrate.NgayThayDoi,newrate.NgayThayDoi)%7)))*8)
+							 FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+							 WHERE	newrate.row_num = @i - 1 AND oldrate.row_num = @i				)
+							 SET @i = @i - 1
+							 WHILE(@i > 1)
+								 BEGIN
+										 SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,oldrate.NgayThayDoi,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,oldrate.NgayThayDoi,newrate.NgayThayDoi)%7)))*8)
+										 FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+										 WHERE	newrate.row_num = @i - 1 AND oldrate.row_num = @i				)
+										SET @i = @i - 1
+								 END
+							 --@i = 1	
+							SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,oldrate.NgayThayDoi,@lastDay)/7)*5 + (DATEDIFF(day,oldrate.NgayThayDoi,@lastDay)%7)))*8)
+							FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+							WHERE oldrate.row_num = @i)
+
+						END
+					END
+					--case dont change rate
+				ELSE IF(@hasChange <= 0 AND @hasOldRate >= 1)
+					BEGIN
+					SET @tempmoney = (SELECT SUM(oldrate.Luong*((DATEDIFF(day,@firstDay,@lastDay)/7)*5 + DATEDIFF(day,@firstDay,@lastDay)%7)*8) as TotalPay
+						 FROM dbo.f_OldRate(@firstDay,@lastDay,@id) as oldrate)
+					END
+
+
+
+
+				
+				INSERT INTO @temptable VALUES (@id,@tempmoney,@firstDay,@lastDay,@currRate)
+			
+				SELECT * FROM @temptable 
+
+		COMMIT TRAN
+	END
+GO
+
+
+---THONG KE CHI NHANH
+
+CREATE PROC admin_ThongKeLuongChiNhanh(@firstDay DATE,@lastDay DATE,@chinhanh nvarchar(20))
+AS
+BEGIN TRAN
+DECLARE @temptable TABLE
+(
+	id nvarchar(20),
+	TotalPayment money,
+	firstday DATETIME,
+	lastday DATETIME,
+	currentRate money
+
+)
+DECLARE @oldday DATETIME
+DECLARE @newday DATETIME
+--SET @newday = @firstDayOfYear
+DECLARE @tempmoney int
+SET @tempmoney = 0;
+DECLARE @i int;
+DECLARE @oldsalary money
+DECLARE @maxrownum int
+DECLARE @maxNhanVien int
+DECLARE @currRate money
+DECLARE @id nvarchar(20)
+DECLARE @hasChange bit
+DECLARE @hasOldRate bit
+
+IF(NOT EXISTS(SELECT * FROM ChiNhanh WHERE ChiNhanh.MaChiNhanh = @chinhanh))
+	begin
+			raiserror('Not exist chi nhanh',16,1) 
+			rollback tran
+			return
+	end
+else
+	BEGIN
+
+		SET @maxNhanVien = (SELECT COUNT(*) FROM NhanVien WHERE NhanVien.ChiNhanh = @chinhanh and NhanVien.TinhTrang = 1)
+		
+			WHILE(@maxNhanVien >= 1)
+			BEGIN
+				SET @id =   (SELECT T.MaNhanVien
+							FROM (
+							SELECT ROW_NUMBER() OVER (ORDER BY MaNhanVien) AS RowNum,
+							NhanVien.MaNhanVien
+							FROM NhanVien
+							WHERE NhanVien.ChiNhanh = @chinhanh and NhanVien.TinhTrang = 1
+							) T
+							WHERE RowNum IN (@maxNhanVien))
+			WAITFOR DELAY '0:00:02'
+		
+				IF(EXISTS (SELECT * FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id)))
+					SET @hasChange = 1
+				ELSE 
+					SET @hasChange = 0
+
+				IF(EXISTS (SELECT * FROM dbo.f_OldRate(@firstDay,@lastDay,@id)))
+					SET @hasOldRate = 1
+				ELSE 
+					SET @hasOldRate = 0			
+		
+		
+				SET @maxrownum =  (SELECT MAX(temp.row_num) FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as temp)
+		
+					--Change salary rate in period
+					IF(@hasChange >= 1 AND @hasOldRate >= 1)
+						BEGIN 
+						IF(@maxrownum < 2)
+			
+							BEGIN
+							 SET @tempmoney = (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,@firstDay,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,@firstDay,newrate.NgayThayDoi)%7)))*8 + newrate.Luong*(((DATEDIFF(day,newrate.NgayThayDoi,@lastDay)/7)*5 + DATEDIFF(day,newrate.NgayThayDoi,@lastDay)%7)) *8)
+							 FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_OldRate(@firstDay,@lastDay,@id) as oldrate)
+							END
+						ELSE
+							BEGIN
+
+								--salary from last year
+					
+
+								SET @tempmoney = @tempmoney + 
+								(SELECT SUM(oldrate.Luong*(((DATEDIFF(day,@firstDay,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,@firstDay,newrate.NgayThayDoi)%7)))*8) 
+								FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_OldRate(@firstDay,@lastDay,@id) as oldrate
+								WHERE newrate.row_num = @maxrownum);
+
+								SET @oldday = (SELECT temp.NgayThayDoi FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) temp WHERE temp.row_num = @maxrownum);
+
+
+								--change in year
+								SET @i = @maxrownum
+								WHILE(@i > 1)
+								BEGIN
+									SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*((DATEDIFF(day,@oldday,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,@oldday,newrate.NgayThayDoi)%7))*8)
+									FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+									WHERE newrate.row_num = @i - 1 AND oldrate.row_num = @i) 
+						
+									SET @oldday = (SELECT newrate.NgayThayDoi FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) newrate WHERE newrate.row_num = @i - 1) 
+						
+									SET @i = @i - 1
+								END
+
+								SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,@oldday,@lastDay)/7)*5 + (DATEDIFF(day,@oldday,@lastDay)%7)))*8)
+								FROM  dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+								WHERE oldrate.row_num = @i) 
+
+							END
+						END
+					--case just work this year			
+					ELSE IF(@hasChange >= 1 AND @hasOldRate <= 0)
+						BEGIN
+							IF(@maxrownum < 2)	
+							BEGIN
+									 SET @tempmoney = (SELECT SUM(newrate.Luong*(((DATEDIFF(day,newrate.NgayThayDoi,@lastDay)/7)*5 + DATEDIFF(day,newrate.NgayThayDoi,@lastDay)%7)*8)) as TotalPay
+									 FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate)
+							END
+							ELSE
+							BEGIN
+								 SET @i = @maxrownum
+								 SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,oldrate.NgayThayDoi,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,oldrate.NgayThayDoi,newrate.NgayThayDoi)%7)))*8)
+								 FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+								 WHERE	newrate.row_num = @i - 1 AND oldrate.row_num = @i				)
+								 SET @i = @i - 1
+								 WHILE(@i > 1)
+									 BEGIN
+											 SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,oldrate.NgayThayDoi,newrate.NgayThayDoi)/7)*5 + (DATEDIFF(day,oldrate.NgayThayDoi,newrate.NgayThayDoi)%7)))*8)
+											 FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as newrate, dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+											 WHERE	newrate.row_num = @i - 1 AND oldrate.row_num = @i				)
+											SET @i = @i - 1
+									 END
+								 --@i = 1	
+								SET @tempmoney = @tempmoney + (SELECT SUM(oldrate.Luong*(((DATEDIFF(day,oldrate.NgayThayDoi,@lastDay)/7)*5 + (DATEDIFF(day,oldrate.NgayThayDoi,@lastDay)%7)))*8)
+								FROM dbo.f_changInPeriod(@firstDay,@lastDay,@id) as oldrate
+								WHERE oldrate.row_num = @i)
+
+							END
+						END
+						--case dont change rate
+					ELSE IF(@hasChange <= 0 AND @hasOldRate >= 1)
+						BEGIN
+						SET @tempmoney = (SELECT SUM(oldrate.Luong*((DATEDIFF(day,@firstDay,@lastDay)/7)*5 + DATEDIFF(day,@firstDay,@lastDay)%7)*8) as TotalPay
+							 FROM dbo.f_OldRate(@firstDay,@lastDay,@id) as oldrate)
+						END
+
+
+
+
+
+		
+					SET @currRate = (SELECT NhanVien.Luong FROM NhanVien WHERE NhanVien.MaNhanVien = @id)
+					INSERT INTO @temptable VALUES (@id,@tempmoney,@firstDay,@lastDay,@currRate)
+					SET @tempmoney = 0
+					SET @maxNhanVien = @maxNhanVien - 1
+				END
+		
+				SELECT * FROM @temptable
+		commit tran
+	END
+GO
+
+
+
+
+
+--------------------------PROC Mẫu----------------------
+create proc ThemNhaThue (@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @tienthue money, @nvquanly nvarchar(20), @chunha nvarchar(20), @loainha smallint)
+as
+begin tran
+	begin try
+		SET TRAN ISOLATION LEVEL READ UNCOMMITTED
+		insert into [dbo].[Nha](SoPhong, DiaChi, LuotXem, TinhTrang, NgayDang, NgayHetHan, KieuNha, NVQuanLy, ChuNha, LoaiNha)
+		values (@sophong, @diachi, @luotxem, 1, @ngaydang, @ngayhethan, 0, @NVquanly, @chunha, @loainha)
+		
+		waitfor delay '0:00:05'
+		declare @manha int
+		SET @manha = (SELECT MAX(MaNha) FROM Nha)
+		insert into [dbo].[NhaThue](MaNha,TienThue) values (@manha,@tienthue)
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
