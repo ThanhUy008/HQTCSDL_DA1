@@ -241,7 +241,7 @@ go
 
 
 --giao tac xem danh sach khach hang
-alter proc XemDanhSachKhachHang(@chinhanh nvarchar(20))
+CREATE proc XemDanhSachKhachHang(@chinhanh nvarchar(20))
 as
 begin tran
 	begin try
@@ -251,7 +251,7 @@ begin tran
 		rollback
 	end
 	else
-		select* from KhachHang
+		select* from KhachHang WHERE ChiNhanhQuanLy=@chinhanh
 	end try
 	
 	begin catch
@@ -262,9 +262,9 @@ begin tran
 		return
 	end catch
 commit tran
-go
+GO
 -- giao tac tim kiem khach hang
-alter proc TimKiemKhachHang(@chinhanh nvarchar(20),@makhachhang nvarchar(20))
+CREATE proc TimKiemKhachHang(@chinhanh nvarchar(20),@makhachhang nvarchar(20))
 as
 begin tran
 	begin try
@@ -273,8 +273,13 @@ begin tran
 		raiserror('not exists ChiNhanh',16,1)
 		rollback
 	end
-	else
-		select* from KhachHang where MaKhachHang=@makhachhang
+	ELSE IF( NOT EXISTS(SELECT*FROM dbo.KhachHang WHERE MaKhachHang=@makhachhang))
+		BEGIN
+		RAISERROR('Not exists Khach Hang',16,1)
+		ROLLBACK
+		END
+		ELSE
+			select* from KhachHang where MaKhachHang=@makhachhang
 	end try
 	begin catch
 		DECLARE @ErrMsg VARCHAR(2000)
@@ -398,10 +403,11 @@ go
 
 -- cac chuc nang cua user
 -- giao tac tim nha
-create proc TimNha_SoPhong(@sophong smallint, @kieunha bit)
+Create proc TimNha_SoPhong(@sophong smallint, @kieunha bit)
 as
 begin tran
-	begin try
+	begin TRY
+    		SET TRAN ISOLATION LEVEL READ UNCOMMITTED
 	if ( not exists (select * from Nha where SoPhong=@sophong and KieuNha=@kieunha))
 	begin
 		raiserror('not exists Nha',16,1)
@@ -410,9 +416,9 @@ begin tran
 	else
 	begin
 	if (@kieunha=1)
-		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nb.GiaBan from Nha n, NhaBan nb where SoPhong=@sophong and KieuNha=@kieunha
+		SELECT n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi from Nha n where n.SoPhong=@sophong and n.KieuNha=@kieunha
 	else
-		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nt.TienThue from Nha n, NhaThue nt where SoPhong=@sophong and KieuNha=@kieunha
+		SELECT n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi from Nha n where SoPhong=@sophong and KieuNha=@kieunha 
 	end
 	end try
 	begin catch
@@ -423,7 +429,7 @@ begin tran
 		return
 	end catch
 commit tran
-go
+GO
 
 --tim nha theo dia chic
 create proc TimNha_DiaChi(@diachi nvarchar(100), @kieunha bit)
@@ -438,9 +444,9 @@ begin tran
 	else
 	begin
 	if (@kieunha=1)
-		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nb.GiaBan from Nha n, NhaBan nb where CHARINDEX(upper(@diachi),UPPER(DiaChi))>0 and KieuNha=@kieunha
+		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nb.GiaBan from Nha n, NhaBan nb where CHARINDEX(upper(@diachi),UPPER(DiaChi))>0 and KieuNha=@kieunha AND n.MaNha=nb.MaNha
 	else
-		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nt.TienThue from Nha n, NhaThue nt where CHARINDEX(upper(@diachi),UPPER(DiaChi))>0 and KieuNha=@kieunha
+		select n.MaNha,n.ChuNha,n.LoaiNha,n.SoPhong,n.DiaChi, nt.TienThue from Nha n, NhaThue nt where CHARINDEX(upper(@diachi),UPPER(DiaChi))>0 and KieuNha=@kieunha AND n.MaNha=nt.MaNha
 	end
 	end try
 	begin catch
@@ -597,8 +603,10 @@ go
 -- Sửa thông tin nhà
 
 -- sửa lượt xem
-create proc SuaTTN_LuotXem (@manha int, @luotxem int)
-as
+CREATE proc SuaTTN_LuotXem (@manha int, @luotxem int)
+AS
+    SET TRAN ISOLATION LEVEL READ UNCOMMITTED
+
 begin tran
 	begin try
 	if (not exists( select * from Nha where MaNha=@manha))
@@ -610,6 +618,7 @@ begin tran
 	begin
 		update [dbo].[Nha] set LuotXem= @luotxem
 		where MaNha= @manha
+		waitfor delay '0:00:05'
 	end
 	end try
 	begin catch
@@ -620,7 +629,7 @@ begin tran
 		return
 	end catch
 commit tran
-go
+GO
 -- sửa tình trạng
 create proc SuaTTN_TinhTrang (@manha int, @tinhtrang int)
 as
@@ -1533,15 +1542,15 @@ go
 --@chunha mã chủ nhà .
 --TODO Thêm nhà bán vào data.
 go
-create proc ThemNhaBan (@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @giaban money, @nvquanly nvarchar(20),@yeucau TEXT ,@chunha nvarchar(20), @loainha smallint)
+Create proc ThemNhaBan (@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @giaban money, @nvquanly nvarchar(20),@yeucau TEXT ,@chunha nvarchar(20), @loainha smallint)
 as
 begin tran
 	begin try
 		SET TRAN ISOLATION LEVEL READ UNCOMMITTED
 		insert into [dbo].[Nha](SoPhong, DiaChi, LuotXem, TinhTrang, NgayDang, NgayHetHan, KieuNha, NVQuanLy, ChuNha, LoaiNha)
-		values (@sophong, @diachi, @luotxem, 1, @ngaydang, @ngayhethan, 0, @NVquanly, @chunha, @loainha)
+		values (@sophong, @diachi, @luotxem, 1, @ngaydang, @ngayhethan, 1, @NVquanly, @chunha, @loainha)
 		
-		waitfor delay '0:00:05'
+		waitfor delay '0:00:5'
 		declare @manha int
 		SET @manha = (SELECT MAX(MaNha) FROM Nha)
 		insert into [dbo].[NhaBan]
@@ -1964,3 +1973,57 @@ GO
 
 select * from ChiNhanh
 select * from LichSuTraLuong
+
+--them proc tang luot xem
+CREATE proc Tang_LuotXem (@manha int)
+AS
+    SET TRAN ISOLATION LEVEL READ UNCOMMITTED
+begin tran
+	begin TRY
+		declare @luotxem int
+		if (NOT EXISTS (SELECT * FROM Nha WHERE Nha.MaNha = @manha))
+			begin
+					raiserror('not exists',16,1)
+					rollback
+			end
+		else
+		begin
+			set @luotxem = (Select LuotXem from Nha where Nha.MaNha = @manha)
+			waitfor delay '0:00:05'
+			update [dbo].[Nha] set LuotXem= @luotxem + 1 WHERE MaNha=@manha
+		end
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+GO
+
+--them proc xoa nhan vien
+CREATE PROC Xoa_NhanVien(@manv nvarchar(20))
+AS
+	SET TRAN ISOLATION LEVEL READ UNCOMMITTED
+BEGIN TRAN
+	begin TRY
+		if(NOT exists (SELECT * FROM NhanVien WHERE NhanVien.MaNhanVien = @manv and NhanVien.TinhTrang = 1))
+			begin
+							raiserror('not exists',16,1)
+							rollback
+			END
+		  ELSE
+			  update [dbo].[NhanVien] set TinhTrang = 0
+			where MaNhanVien= @manv
+	END TRY
+    begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+COMMIT
+go
