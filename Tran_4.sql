@@ -1141,16 +1141,17 @@ create proc SuaSDTChuNha(@machunha nvarchar(20), @sdt nvarchar(10))
 as
 begin tran
 	begin try
-	if(not exists(select* from ChuNha where MaChuNha=@machunha))
-	begin
-	raiserror('not exists',16,1)
-	rollback
-	end
-	else
-	begin
-	update [dbo].[ChuNha] set SDT= @sdt
-	where MaChuNha = @machunha
-	end
+		if(not exists(select* from ChuNha where MaChuNha=@machunha))
+			begin
+			raiserror('not exists',16,1)
+			rollback
+			end
+		else
+			begin
+			    WAITFOR DELAY '0:00:05'
+			update [dbo].[ChuNha] set SDT= @sdt
+			where MaChuNha = @machunha
+			end
 	end try
 	begin catch
 		DECLARE @ErrMsg VARCHAR(2000)
@@ -2027,3 +2028,27 @@ BEGIN TRAN
 	end catch
 COMMIT
 go
+--proc xoa chu nha
+CREATE PROC Xoa_ChuNha(@macn nvarchar(20))
+AS
+	SET TRAN ISOLATION LEVEL READ UNCOMMITTED
+BEGIN TRAN
+	begin TRY
+		if(NOT exists (SELECT * FROM dbo.ChuNha WHERE MaChuNha = @macn and TinhTrang = 1))
+			begin
+							raiserror('not exists',16,1)
+							rollback
+			END
+		  ELSE
+			  update [dbo].[ChuNha] set TinhTrang = 0
+			where MaChuNha=@macn
+	END TRY
+    begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+COMMIT
+GO
