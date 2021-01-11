@@ -1,1 +1,0 @@
-# HQTCSDL_DA1

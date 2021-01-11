@@ -517,7 +517,7 @@ insert into [dbo].[Nha] (SoPhong, DiaChi, LuotXem, TinhTrang, NgayDang, NgayHetH
 
 
 
-insert into [dbo].[NhaThue] (MaNha, TienThue) values (1,1044)
+--insert into [dbo].[NhaThue] (MaNha, TienThue) values (1,1044)
 insert into [dbo].[NhaThue] (MaNha, TienThue) values (3,1097)
 insert into [dbo].[NhaThue] (MaNha, TienThue) values (5,1000)
 insert into [dbo].[NhaThue] (MaNha, TienThue) values (7,1001)
@@ -586,7 +586,7 @@ insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10008',
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10009',29,'2022-12-20',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10010',10,'2022-6-3',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10011',48,'2022-12-21',N'Tốt')
-insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10012',1,'2022-5-21',N'Tốt')
+--insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10012',1,'2022-5-21',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10013',18,'2022-6-25',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10014',48,'2022-2-25',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10015',50,'2022-12-22',N'Tốt')
@@ -597,7 +597,7 @@ insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10019',
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10020',26,'2022-2-22',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10021',34,'2022-2-26',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10022',7,'2022-2-26',N'Tốt')
-insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10023',1,'2022-5-27',N'Tốt')
+--insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10023',1,'2022-5-27',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10024',13,'2022-1-11',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10025',32,'2022-4-14',N'Tốt')
 insert into [dbo].[XemNha] (KhachHang, Nha, NgayXem, NhanXet) values ('KH10026',16,'2022-8-24',N'Tốt')

@@ -292,7 +292,7 @@ commit tran
 go
 
 --giao tac xem lich su thue
-alter proc XemLichSuthue(@makhachhang nvarchar(20), @chinhanh nvarchar(20))
+create proc XemLichSuthue(@makhachhang nvarchar(20), @chinhanh nvarchar(20))
 as
 begin tran
 	begin try
@@ -496,7 +496,7 @@ commit tran
 go
 
 -- giao tac yeu cau nha
-alter proc YeuCauNha(@khachhang nvarchar(20), @loainha smallint)
+create proc YeuCauNha(@khachhang nvarchar(20), @loainha smallint)
 as
 begin tran
 	begin try
@@ -518,7 +518,7 @@ begin tran
 commit tran
 go
 -- giao tac doi mat kau
-alter proc DoiMatKhau_KH(@khachhang nvarchar(20), @mkmoi nvarchar(100))
+create proc DoiMatKhau_KH(@khachhang nvarchar(20), @mkmoi nvarchar(100))
 as
 begin tran
 	begin try
@@ -560,7 +560,7 @@ begin tran
 	end
 	else
 	begin
-		select * from [dbo].[Nha]
+		select * from [dbo].[Nha] where [dbo].[Nha].TinhTrang = 1
 	end
 	end try
 	begin catch
@@ -742,7 +742,7 @@ go
 -- tình trạng: 0: có sẵn, 1: đã cho thuê/ bán
 -- kiểu nhà: 0: nhà bán, 1: nhà thuê
 -- nhà thuê
-create proc ThemNhaThue (@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @tienthue money, @nvquanly nvarchar(20), @chunha nvarchar(20), @loainha smallint)
+/*create proc ThemNhaThue (@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @tienthue money, @nvquanly nvarchar(20), @chunha nvarchar(20), @loainha smallint)
 as
 begin tran
 	begin try
@@ -762,9 +762,9 @@ begin tran
 commit tran
 go
 
-
+*/
 -- nhà bán
-create proc ThemNhaBan (@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @giaban money, @nvquanly nvarchar(20), @chunha nvarchar(20), @loainha smallint)
+/*create proc ThemNhaBan (@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @giaban money, @nvquanly nvarchar(20), @chunha nvarchar(20), @loainha smallint)
 as
 begin tran
 	begin try
@@ -782,7 +782,7 @@ begin tran
 	end catch
 commit tran
 go
-
+*/
 -- Thống kê nhà
 
 -- theo phòng
@@ -1182,7 +1182,7 @@ begin tran
 	else
 	begin
 	insert into [dbo].[ChuNha](MaChuNha,TenChuNha, TinhTrang, DiaChi, LoaiChuNha, SDT)
-	values (@tenchunha, @tinhtrang, @diachi, @loaichunha, @sdt)
+	values (@macn,@tenchunha, @tinhtrang, @diachi, @loaichunha, @sdt)
 	end
 	end try
 	begin catch
@@ -1334,6 +1334,7 @@ commit tran
 go
 
 select * from NhanVien
+go
 -- sua tinh trang nhan vien
 create proc SuaTinhTrangNhanVien(@manv nvarchar(20), @tinhtrang bit)
 as
@@ -1388,7 +1389,7 @@ go
 
 -- Sua thong tin khach hang
 --sua ten khach hang
-alter proc SuaTenKhachHang(@makh nvarchar(20), @ten nvarchar(50))
+create proc SuaTenKhachHang(@makh nvarchar(20), @ten nvarchar(50))
 as
 begin tran
 	begin try
@@ -1576,23 +1577,12 @@ begin tran
 	end catch
 commit TRAN
 GO
-EXEC dbo.ThemNhaBan @sophong = 1,               -- smallint
-                    @diachi = N'Thon 2 thang hung chu prong gia lai',              -- nvarchar(100)
-                    @luotxem = 1,               -- int
-                    @ngaydang = '2020-12-31',   -- date
-                    @ngayhethan = '2021-12-31', -- date
-                    @giaban = 10000,             -- money
-                    @nvquanly = N'NV10000',            -- nvarchar(20)
-                    @yeucau = '',               -- text
-                    @chunha = N'LL10000',              -- nvarchar(20)
-                    @loainha = 4                -- smallint
---
-GO
+
 --Hàm tìm nhà của chủ nhà
 --@manha mã nhà cần tìm,
 --@machunha mã chủ nhà của nhà cần tìm
 --TODO Tìm nhà cho chủ nhà.
-DROP PROC ChuNhaTimNha
+--DROP PROC ChuNhaTimNha
 go
 create proc ChuNhaTimNha(@manha int,@machunha nvarchar(20))
 as
@@ -1617,7 +1607,7 @@ go
 --TODO: Xem danh sách tất cả nhà của chủ nhà
 
 go
-create proc XemDanhSachNha(@machunha nvarchar(20))
+create proc CN_XemDanhSachNha(@machunha nvarchar(20))
 as
 begin tran
 	set tran isolation level Read committed 
@@ -1630,7 +1620,7 @@ begin tran
 		END
 	ELSE
 	waitfor delay '0:00:05'
-		SELECT * FROM  dbo.Nha WHERE nha.ChuNha=@machunha
+		SELECT * FROM  dbo.Nha WHERE nha.ChuNha=@machunha and nha.TinhTrang = 1
 commit
 go
 -- nvarchar(20)
@@ -1976,6 +1966,7 @@ select * from ChiNhanh
 select * from LichSuTraLuong
 
 --them proc tang luot xem
+go
 CREATE proc Tang_LuotXem (@manha int)
 AS
     SET TRAN ISOLATION LEVEL READ UNCOMMITTED
