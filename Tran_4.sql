@@ -1607,7 +1607,7 @@ begin TRAN
     ELSE
 		BEGIN	
 		waitfor delay '0:00:05'
-			select Nha.MaNha,Nha.DiaChi,QuaTrinhThue.KhachHang,QuaTrinhThue.NgayBatDau,QuaTrinhThue.NgayKetThuc from Nha,QuaTrinhThue where (Nha.ChuNha=@machunha and Nha.MaNha=@manha) and QuaTrinhThue.NhaThue=Nha.MaNha
+			select Nha.MaNha,Nha.DiaChi,QuaTrinhThue.KhachHang,QuaTrinhThue.NgayBatDau,QuaTrinhThue.NgayKetThuc from Nha,QuaTrinhThue where (Nha.ChuNha=@machunha and Nha.MaNha=@manha) and QuaTrinhThue.NhaThue=Nha.MaNha AND TinhTrang=1
 		END
 commit
 go
@@ -1630,7 +1630,7 @@ begin tran
 		END
 	ELSE
 	waitfor delay '0:00:05'
-		SELECT * FROM  dbo.Nha WHERE nha.ChuNha=@machunha
+		SELECT * FROM  dbo.Nha WHERE nha.ChuNha=@machunha AND TinhTrang=1
 commit
 go
 -- nvarchar(20)
