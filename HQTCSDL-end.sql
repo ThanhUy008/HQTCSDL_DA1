@@ -119,7 +119,7 @@ create table [dbo].[Nha](
 	[TinhTrang] [int] not null, --1 là còn có th? cho thuê, 0 là ?ã thuê, 2 là ?ã bán không còn tìm th?y ???c.
 	[NgayDang] [date] not null,
 	[NgayHetHan] [date] not null,
-	[KieuNha] [dbo].[Flag] not null,
+	[KieuNha] [dbo].[Flag] not null, --0 thue , 1 la ban
 	[NVQuanLy] [ID] not null,
 	[ChuNha] [ID] not null,
 	[LoaiNha] [smallint] not null
@@ -145,17 +145,21 @@ go
 
 
 create table [dbo].[ThongBaoKhachHang](
-	[MaNha] [int]  not null,
 	[MaKhachHang] [ID] not null,
+	[LoaiNha] [smallint] not null,
+	[MaNha] [int]  not null,
 	[ThongBao] [Flag] not null,
 )
 go
 alter table [dbo].[ThongBaoKhachHang]
-add constraint [TBKhachHang_PK] primary key ([MaNha],[MaKhachHang]);
+add constraint [TBKhachHang_PK] primary key ([MaKhachHang],[LoaiNha],[MaNha]);
 go
 
 alter table [dbo].[ThongBaoKhachHang]
 add constraint [FK_Nha_ThongBaoKhachHang] foreign key ([MaNha]) references [dbo].[Nha]([MaNha]) 
+go
+alter table [dbo].[ThongBaoKhachHang]
+add constraint [FK_LoaiNha_ThongBaoKhachHang] foreign key ([LoaiNha]) references [dbo].LoaiNha([MaLoaiNha]) 
 go
 alter table [dbo].[ThongBaoKhachHang]
 add constraint [FK_KhachHang_TBKhachHang] foreign key ([MaKhachHang]) references [dbo].[KhachHang]([MaKhachHang])
@@ -208,7 +212,7 @@ set quoted_identifier on
 go
 create table [dbo].[YeuCauKH](
 	[KhachHang] [ID] not null,
-	[LoaiNha] [smallint] not null
+	[LoaiNha] [smallint] not null,
 )
 go
 

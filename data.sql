@@ -712,13 +712,13 @@ insert into [dbo].[YeuCauKH] (KhachHang, LoaiNha) values ('KH10049',3)
 
 
 
-insert into [dbo].[AccountKhachHang] (IDKhachHang,Password) values ('KH10001','123456789')
+insert into [dbo].[AccountKhachHang] (IDKhachHang,Password) values ('KH10001','1')
 
 
-insert into [dbo].[AccountChuNha] (IDChuNha,Password) values ('LL10001','123456789')
+insert into [dbo].[AccountChuNha] (IDChuNha,Password) values ('LL10001','1')
 
 
-insert into [dbo].[AccountAdmin] (IDAdmin,Password) values ('admin','admin')
+insert into [dbo].[AccountAdmin] (IDAdmin,Password) values ('CN10001','1')
 
 
 

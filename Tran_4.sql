@@ -41,7 +41,36 @@ end
 
 go
 
+--Chunha xem ds nhan vien
 
+create proc CN_XemDanhSachNhanVien
+as
+begin tran
+	begin try
+	if(not exists (select * from ChiNhanh))
+	begin
+		raiserror('error: not exit Nhan vien',16,1)
+		rollback
+	end
+	else
+	begin
+		waitfor delay '0:00:05'
+		select * from [dbo].[NhanVien]
+		where TinhTrang=1 
+	end
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+
+commit tran
+go
+exec CN_XemDanhSachNhanVien
+go
 --go
 -- Chức năng của Admin
 -- giao tac doc danh sach nhan vien con lam viec trong cong ty
@@ -263,6 +292,24 @@ begin tran
 	end catch
 commit tran
 GO
+CREATE proc NV_XemDanhSachKhachHang
+as
+begin tran
+	begin try
+	
+		select* from KhachHang 
+	end try
+	
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+GO
+go
 -- giao tac tim kiem khach hang
 CREATE proc TimKiemKhachHang(@chinhanh nvarchar(20),@makhachhang nvarchar(20))
 as
@@ -290,7 +337,30 @@ begin tran
 	end catch
 commit tran
 go
-
+CREATE proc NV_TimKiemKhachHang(@makhachhang nvarchar(20))
+as
+begin tran
+	begin try
+	
+		IF( NOT EXISTS(SELECT*FROM dbo.KhachHang WHERE MaKhachHang=@makhachhang))
+		BEGIN
+		RAISERROR('Not exists Khach Hang',16,1)
+		ROLLBACK
+		END
+		ELSE
+			select* from KhachHang where MaKhachHang=@makhachhang
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
+exec NV_TimKiemKhachHang 'KH10001'
+go
 --giao tac xem lich su thue
 create proc XemLichSuthue(@makhachhang nvarchar(20), @chinhanh nvarchar(20))
 as
@@ -347,18 +417,19 @@ go
 
 
 -- giao tac tim kiem chu nha
+
 create proc TimKiemChuNha(@chunha nvarchar(20))
 as
 begin tran
 	begin try
-	if( not exists (select * from ChuNha where MaChuNha=@chunha))
+	if( not exists (select * from ChuNha where MaChuNha=@chunha and TinhTrang = 1))
 	begin
 		raiserror('not exists ChuNha',16,1)
 		rollback
 	end
 	else
 	begin
-		select * from ChuNha where MaChuNha=@chunha
+		select * from ChuNha where MaChuNha=@chunha and TinhTrang = 1
 	end
 	end try
 	begin catch
@@ -494,7 +565,135 @@ begin tran
 	end catch
 commit tran
 go
+--xem ds yeu cau
+create proc KH_XemNhaYeuCau (@makh nvarchar(20))
+as
+begin tran
+	begin try
+	
+	select * from ThongBaoKhachHang where ThongBaoKhachHang.ThongBao = 1 and MaKhachHang = @makh
 
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
+--xem nhan xet
+create proc KH_XemNhanXetNha (@manha int)
+as
+begin tran
+	begin try
+	
+	select Nha, NhanXet, NgayXem from XemNha where Nha = @manha
+
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
+--
+
+create proc XemNhaYeuCau (@makh nvarchar(20))
+as
+begin tran
+	begin try
+	
+	select * from ThongBaoKhachHang where ThongBaoKhachHang.ThongBao = 0 and MaKhachHang = @makh
+
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
+--Thong bao cho khach hang
+
+create proc ThongBaoKH (@makh nvarchar(20),@loainha smallint ,@manha int)
+as
+begin tran
+	begin try
+	if (not exists(select * from ThongBaoKhachHang where MaKhachHang=@makh and MaNha = @manha and LoaiNha = @loainha and ThongBao = 0))
+	begin
+		raiserror('not exists customer',16,1)
+		rollback
+	end
+	else
+	begin
+		update ThongBaoKhachHang set ThongBao = 1
+		where MaKhachHang = @makh and MaNha = @manha and LoaiNha = @loainha
+	end
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
+go
+--Tim nha phu hop yeu cau
+create proc TimNhaPhuHopYC (@makh nvarchar(20) ,@loainha smallint)
+as
+begin tran
+	begin try
+	if (not exists(select * from YeuCauKH where KhachHang=@makh and LoaiNha = @loainha))
+	begin
+		raiserror('not exists customer',16,1)
+		rollback
+	end
+	else
+	begin
+		declare @max int, @index int,@manha int;
+		set @index = 1;
+		set @max = (select count(*) from Nha where Nha.LoaiNha = @loainha and Nha.TinhTrang = 1)
+		while(@index < @max)
+		begin
+			set @manha = (SELECT foo.MaNha FROM (
+				  SELECT ROW_NUMBER() OVER (ORDER BY Nha.MaNha  ASC) AS rownumber,Nha.MaNha
+				  FROM Nha 
+				  WHERE Nha.LoaiNha = @loainha and Nha.TinhTrang = 1) AS foo
+			WHERE foo.rownumber = @index)
+			
+			if(not exists (select * from ThongBaoKhachHang WHERE ThongBaoKhachHang.MaNha = @manha and ThongBaoKhachHang.MaKhachHang = @makh))
+			begin
+				insert into ThongBaoKhachHang(MaNha,MaKhachHang,LoaiNha ,ThongBao) values (@manha,@makh,@loainha,0)
+			end
+			set @index = @index +1 
+
+		end
+
+
+	end
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
+
+go
+select * from ThongBaoKhachHang
+go
 -- giao tac yeu cau nha
 create proc YeuCauNha(@khachhang nvarchar(20), @loainha smallint)
 as
@@ -599,7 +798,8 @@ begin tran
 	
 commit tran
 go
-
+exec NV_TimNha 4
+go
 -- Sửa thông tin nhà
 
 -- sửa lượt xem
@@ -655,6 +855,87 @@ begin tran
 		return
 	end catch
 commit tran
+go
+---Uy : Sua thong tin ha
+
+create proc SuaTTNha (@manha int,@sophong smallint, @diachi nvarchar(100), @luotxem int, @ngaydang date, @ngayhethan date, @nvquanly nvarchar(20), @chunha nvarchar(20),@loainha smallint)
+as
+begin tran
+	begin try
+	if (not exists( select * from Nha where MaNha=@manha ))
+	begin
+		raiserror('not exists',16,1)
+		rollback
+	end
+	else
+	begin
+		
+		update [dbo].[Nha] set SoPhong = @sophong, DiaChi = @diachi, LuotXem = @luotxem, NgayDang = @ngaydang, NgayHetHan = @ngayhethan, NVQuanLy = NVQuanLy, ChuNha = @chunha, LoaiNha = @loainha
+		where MaNha= @manha
+	end
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
+
+--Sua thong tin nhan vien
+
+create proc NV_SuaTTKhachHang (@makh nvarchar(20),@ten nvarchar(100), @diachi nvarchar(100), @sdt nvarchar(10),  @cnquanly nvarchar(20))
+as
+begin tran
+	begin try
+	if (not exists( select * from KhachHang where MaKhachHang= @makh ))
+	begin
+		raiserror('not exists',16,1)
+		rollback
+	end
+	else
+	begin
+		
+		update [dbo].[KhachHang] set Ten = @ten, DiaChi = @diachi, SDT = @sdt, ChiNhanhQuanLy = @cnquanly
+		where MaKhachHang = @makh
+	end
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
+create proc NV_SuaTTChuNha (@macn nvarchar(20),@ten nvarchar(100), @diachi nvarchar(100),@loaichunha bit, @sdt nvarchar(10))
+as
+begin tran
+	begin try
+	if (not exists( select * from ChuNha where MaChuNha= @macn  and TinhTrang = 1))
+	begin
+		raiserror('not exists',16,1)
+		rollback
+	end
+	else
+	begin
+		
+		update [dbo].[ChuNha] set TenChuNha = @ten, DiaChi = @diachi, SDT = @sdt, LoaiChuNha = @loaichunha
+		where MaChuNha = @macn
+	end
+	end try
+	begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+commit tran
+go
 go
 -- sửa ngày đăng
 create proc SuaTTN_NgayDang (@manha int, @ngaydang date)
@@ -1167,7 +1448,7 @@ go
 -- giống admin
 
 -- Thêm chủ nhà
-create proc ThemChuNha (@tenchunha nvarchar(100), @tinhtrang bit, @diachi nvarchar(100), @loaichunha bit, @sdt nvarchar(10))
+create proc ThemChuNha (@tenchunha nvarchar(100), @diachi nvarchar(100), @loaichunha bit, @sdt nvarchar(10))
 as
 begin tran
 	begin try
@@ -1182,7 +1463,7 @@ begin tran
 	else
 	begin
 	insert into [dbo].[ChuNha](MaChuNha,TenChuNha, TinhTrang, DiaChi, LoaiChuNha, SDT)
-	values (@macn,@tenchunha, @tinhtrang, @diachi, @loaichunha, @sdt)
+	values (@macn,@tenchunha, 1, @diachi, @loaichunha, @sdt)
 	end
 	end try
 	begin catch
@@ -2035,6 +2316,95 @@ BEGIN TRAN
 		  ELSE
 			  update [dbo].[ChuNha] set TinhTrang = 0
 			where MaChuNha=@macn
+	END TRY
+    begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+COMMIT
+GO
+--
+CREATE PROC KhachHang_Dangnhap(@id nvarchar(20),@mk nvarchar(20))
+AS
+	SET TRAN ISOLATION LEVEL READ UNCOMMITTED
+BEGIN TRAN
+	begin TRY
+		if(NOT exists (SELECT * FROM [dbo].[AccountKhachHang] WHERE IDKhachHang = @id ))
+			begin
+							raiserror('not exists',16,1)
+							rollback
+			END
+		  ELSE
+			  select * from AccountKhachHang where IDKhachHang = @id and Password = @mk;
+	END TRY
+    begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+COMMIT
+GO
+CREATE PROC Admin_Dangnhap(@id nvarchar(20),@mk nvarchar(20))
+AS
+	SET TRAN ISOLATION LEVEL READ UNCOMMITTED
+BEGIN TRAN
+	begin TRY
+		if(NOT exists (SELECT * FROM [dbo].[AccountAdmin] WHERE IDAdmin = @id ))
+			begin
+							raiserror('not exists',16,1)
+							rollback
+			END
+		  ELSE
+			  select * from AccountAdmin where IDAdmin = @id and Password = @mk;
+	END TRY
+    begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+COMMIT
+GO
+CREATE PROC NhanVien_Dangnhap(@id nvarchar(20),@mk nvarchar(20))
+AS
+	SET TRAN ISOLATION LEVEL READ UNCOMMITTED
+BEGIN TRAN
+	begin TRY
+		if(NOT exists (SELECT * FROM [dbo].[AccountNhanVien] WHERE IDNhanVien = @id ))
+			begin
+							raiserror('not exists',16,1)
+							rollback
+			END
+		  ELSE
+			  select * from AccountNhanVien where IDNhanVien = @id and Password = @mk;
+	END TRY
+    begin catch
+		DECLARE @ErrMsg VARCHAR(2000)
+		SELECT @ErrMsg = N'Lỗi: ' + ERROR_MESSAGE()
+		raiserror(@ErrMsg,16,1)
+		rollback tran
+		return
+	end catch
+COMMIT
+GO
+CREATE PROC ChuNha_Dangnhap(@id nvarchar(20),@mk nvarchar(20))
+AS
+	SET TRAN ISOLATION LEVEL READ UNCOMMITTED
+BEGIN TRAN
+	begin TRY
+		if(NOT exists (SELECT * FROM [dbo].[AccountChuNha] WHERE IDChuNha = @id ))
+			begin
+							raiserror('not exists',16,1)
+							rollback
+			END
+		  ELSE
+			  select * from AccountChuNha where IDChuNha = @id and Password = @mk;
 	END TRY
     begin catch
 		DECLARE @ErrMsg VARCHAR(2000)
